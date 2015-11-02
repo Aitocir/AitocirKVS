@@ -21,6 +21,13 @@
 #include "input_shell.h"
 #include "structures.h"
 
+// addresses (un)signed char platform differences
+#ifdef __CHAR_UNSIGNED__
+#define CHAR_FACTOR 0
+#else
+#define CHAR_FACTOR 256
+#endif
+
 using namespace std;
 using namespace AKVSConfig;
 using namespace AKVSInputShell;
@@ -75,13 +82,13 @@ key_idx findKey(key_value request) {
     char* hashPtr = new char[4];
     db_file.seekg(hashHead);
     db_file.read(hashPtr, 4);
-    idx = hashPtr[0] & 0x80 ? 256+hashPtr[0] : hashPtr[0];
+    idx = hashPtr[0] & 0x80 ? CHAR_FACTOR+hashPtr[0] : hashPtr[0];
     idx <<= 8;
-    idx += hashPtr[1] & 0x80 ? 256+hashPtr[1] : hashPtr[1];
+    idx += hashPtr[1] & 0x80 ? CHAR_FACTOR+hashPtr[1] : hashPtr[1];
     idx <<= 8;
-    idx += hashPtr[2] & 0x80 ? 256+hashPtr[2] : hashPtr[2];
+    idx += hashPtr[2] & 0x80 ? CHAR_FACTOR+hashPtr[2] : hashPtr[2];
     idx <<= 8;
-    idx += hashPtr[3] & 0x80 ? 256+hashPtr[3] : hashPtr[3];
+    idx += hashPtr[3] & 0x80 ? CHAR_FACTOR+hashPtr[3] : hashPtr[3];
     
     // check to see if hash bucket is empty
     if (idx == 0) {

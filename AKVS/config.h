@@ -32,10 +32,10 @@ namespace AKVSConfig {
         {2, {1}},
         {4, {2}},
         {8, {3}},
-        {16, {4}},
-        {64, {5}},
-        {256, {6}},
-        {1024, {7}}
+        {32, {4}},
+        {256, {5}},
+        {4096, {6}},
+        {65536, {7}}
     };
     
     
@@ -60,13 +60,12 @@ namespace AKVSConfig {
         
         // other primitives
         BOOLEAN = 0x30,
-        CHAR = 0x31,
         
         // strings
-        STR16 = 0x40,
-        STR64 = 0x41,
-        STR256 = 0x42,
-        STR1024 = 0x43,
+        CHAR32 = 0x40,
+        CHAR256 = 0x41,
+        CHAR4096 = 0x42,
+        CHAR65536 = 0x43,
         
         // not a valid type symbol
         EMPTY = 0xFF
@@ -101,24 +100,22 @@ namespace AKVSConfig {
                 
             case 0x30:
                 return value_type::BOOLEAN;
-            case 0x31:
-                return value_type::CHAR;
                 
             case 0x40:
-                return value_type::STR16;
+                return value_type::CHAR32;
             case 0x41:
-                return value_type::STR64;
+                return value_type::CHAR256;
             case 0x42:
-                return value_type::STR256;
+                return value_type::CHAR4096;
             case 0x43:
-                return value_type::STR1024;
+                return value_type::CHAR65536;
                 
             default:
                 return value_type::EMPTY;
         }
     }
     
-    uint16_t getValueLengthForType(value_type type){
+    uint32_t getValueLengthForType(value_type type){
         
         switch (type) {
                 
@@ -126,7 +123,6 @@ namespace AKVSConfig {
             case value_type::UINT8:
             case value_type::INT8:
             case value_type::BOOLEAN:
-            case value_type::CHAR:
                 return 1;
             
             // 2 bytes
@@ -142,25 +138,25 @@ namespace AKVSConfig {
             // 8 bytes
             case value_type::UINT64:
             case value_type::INT64:
+            case value_type::FLOAT:
                 return 8;
                 
-            // 16 bytes
-            case value_type::STR16:
-            case value_type::FLOAT:
-                return 16;
-                
-            // 64 bytes
-            case value_type::STR64:
+            // 32 bytes
+            case value_type::CHAR32:
             case value_type::DOUBLE:
-                return 64;
+                return 32;
                 
             // 256 bytes
-            case value_type::STR256:
+            case value_type::CHAR256:
                 return 256;
                 
-            // 1k bytes
-            case value_type::STR1024:
-                return 1024;
+            // 4k bytes
+            case value_type::CHAR4096:
+                return 4096;
+                
+            // 4k bytes
+            case value_type::CHAR65536:
+                return 65536;
                 
             case value_type::EMPTY:
                 return 0;
@@ -193,16 +189,14 @@ namespace AKVSConfig {
             return value_type::DOUBLE;
         } else if (nameLower == "bool" || name == "boolean") {
             return value_type::BOOLEAN;
-        } else if (nameLower == "char") {
-            return value_type::CHAR;
-        } else if (nameLower == "str16") {
-            return value_type::STR16;
-        } else if (nameLower == "str64") {
-            return value_type::STR64;
-        } else if (nameLower == "str256") {
-            return value_type::STR256;
-        } else if (nameLower == "str1024") {
-            return value_type::STR1024;
+        } else if (nameLower == "char32") {
+            return value_type::CHAR32;
+        } else if (nameLower == "char256") {
+            return value_type::CHAR256;
+        } else if (nameLower == "char4096") {
+            return value_type::CHAR4096;
+        } else if (nameLower == "char65536") {
+            return value_type::CHAR65536;
         } else {
             return value_type::EMPTY;
         }
@@ -236,17 +230,15 @@ namespace AKVSConfig {
                 
             case value_type::BOOLEAN:
                 return "boolean";
-            case value_type::CHAR:
-                return "char";
                 
-            case value_type::STR16:
-                return "str16";
-            case value_type::STR64:
-                return "str64";
-            case value_type::STR256:
-                return "str256";
-            case value_type::STR1024:
-                return "str1024";
+            case value_type::CHAR32:
+                return "char32";
+            case value_type::CHAR256:
+                return "char256";
+            case value_type::CHAR4096:
+                return "char4096";
+            case value_type::CHAR65536:
+                return "char65536";
                 
             default:
                 return "null";

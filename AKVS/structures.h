@@ -172,17 +172,8 @@ namespace AKVSStructures {
             }
         }
         
-        char valueAs_char() {
-            if (type != AKVSConfig::value_type::CHAR) {
-                return '\0';
-            }
-            else {
-                return value[0];
-            }
-        }
-        
-        std::string valueAs_str16() {
-            if (type != AKVSConfig::value_type::STR16) {
+        std::string valueAs_char32() {
+            if (type != AKVSConfig::value_type::CHAR32) {
                 return "";
             }
             else {
@@ -190,8 +181,8 @@ namespace AKVSStructures {
             }
         }
         
-        std::string valueAs_str64() {
-            if (type != AKVSConfig::value_type::STR64) {
+        std::string valueAs_char256() {
+            if (type != AKVSConfig::value_type::CHAR256) {
                 return "";
             }
             else {
@@ -199,8 +190,8 @@ namespace AKVSStructures {
             }
         }
         
-        std::string valueAs_str256() {
-            if (type != AKVSConfig::value_type::STR256) {
+        std::string valueAs_char4096() {
+            if (type != AKVSConfig::value_type::CHAR4096) {
                 return "";
             }
             else {
@@ -208,8 +199,8 @@ namespace AKVSStructures {
             }
         }
         
-        std::string valueAs_str1024() {
-            if (type != AKVSConfig::value_type::STR1024) {
+        std::string valueAs_char65536() {
+            if (type != AKVSConfig::value_type::CHAR65536) {
                 return "";
             }
             else {
@@ -272,17 +263,15 @@ namespace AKVSStructures {
                     
                 case AKVSConfig::value_type::BOOLEAN:
                     return std::to_string(valueAs_bool());
-                case AKVSConfig::value_type::CHAR:
-                    return std::to_string(valueAs_char());
                     
-                case AKVSConfig::value_type::STR16:
-                    return valueAs_str16();
-                case AKVSConfig::value_type::STR64:
-                    return valueAs_str64();
-                case AKVSConfig::value_type::STR256:
-                    return valueAs_str256();
-                case AKVSConfig::value_type::STR1024:
-                    return valueAs_str1024();
+                case AKVSConfig::value_type::CHAR32:
+                    return valueAs_char32();
+                case AKVSConfig::value_type::CHAR256:
+                    return valueAs_char256();
+                case AKVSConfig::value_type::CHAR4096:
+                    return valueAs_char4096();
+                case AKVSConfig::value_type::CHAR65536:
+                    return valueAs_char65536();
                     
                 default:
                     return "(null)";

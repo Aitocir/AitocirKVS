@@ -281,17 +281,15 @@ namespace AKVSInputShell {
 
             case AKVSConfig::value_type::BOOLEAN:
                 return packagePairForBoolean(keyValue, rawValue);
-//            case AKVSConfig::value_type::CHAR:
-//                return std::to_string(keyValue.valueAs_char());
-//                
-            case AKVSConfig::value_type::STR16:
-                return packagePairForSTR(keyValue, rawValue, 16);
-            case AKVSConfig::value_type::STR64:
-                return packagePairForSTR(keyValue, rawValue, 64);
-            case AKVSConfig::value_type::STR256:
+                
+            case AKVSConfig::value_type::CHAR32:
+                return packagePairForSTR(keyValue, rawValue, 32);
+            case AKVSConfig::value_type::CHAR256:
                 return packagePairForSTR(keyValue, rawValue, 256);
-            case AKVSConfig::value_type::STR1024:
-                return packagePairForSTR(keyValue, rawValue, 1024);
+            case AKVSConfig::value_type::CHAR4096:
+                return packagePairForSTR(keyValue, rawValue, 4096);
+            case AKVSConfig::value_type::CHAR65536:
+                return packagePairForSTR(keyValue, rawValue, 65536);
                 
             default:
                 keyValue.type = AKVSConfig::value_type::EMPTY;
