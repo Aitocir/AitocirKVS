@@ -27,7 +27,7 @@ namespace AKVSStructures {
     
     struct key_value {
         char* key = NULL;
-        AKVSConfig::value_type type;
+        AKVSConfig::value_type type = AKVSConfig::value_type::EMPTY;
         char* value = NULL;
         
         void setNonexistantKVPair() {
@@ -237,6 +237,7 @@ namespace AKVSStructures {
         }
         
         std::string valueAsString() {
+            
             switch (type) {
                 case AKVSConfig::value_type::UINT8:
                     return std::to_string(valueAs_uint8());

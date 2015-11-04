@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
+#include <set>
 #include <sstream>
 #include <string>
 #include <sys/mman.h>
@@ -69,13 +70,10 @@ uint16_t getHashForKeyAndType(key_value entry) {
 //      if it does: returns the byte index of the existing key
 //      if it doesn't: returns first available byte index key COULD be added and the next ptr that would need updated
 //
-key_idx findKey(key_value request) {
+key_idx searchForKeyInBucket(key_value request, uint16_t hash) {
     
     // declare idx struct
     key_idx result;
-    
-    // hash key
-    uint16_t hash = getHashForKeyAndType(request);
     uint32_t hashHead = (((uint32_t)hash)*4)+CONFIG_HASHTABLE_START;
     uint32_t idx;
     
@@ -151,21 +149,47 @@ key_idx findKey(key_value request) {
         result.index = firstEmptyIdx; // 0 will be treated as EOF
         return result;
     }
+
 }
 
-//value_type identifyKeyValueType(key_value key) {
-//    
-//    key_idx keyLookup = findKey(key);
-//    
-//    if (!keyLookup.exists) {
-//        return value_type::EMPTY;
-//    }
-//    
-//    char* rawValueType;
-//    db_file.seekg(keyLookup.index + CONFIG_keySize);
-//    db_file.read(rawValueType, 1);
-//    return getValueTypeForRawValue((uint8_t)*rawValueType);
-//}
+
+key_idx findKey(key_value request) {
+    
+    // hash key
+    uint16_t hash = getHashForKeyAndType(request);
+    return searchForKeyInBucket(request, hash);
+}
+
+key_idx findKeyWithoutType(key_value request) {
+    
+    // hash key against all possible types
+    // only save unique hashes
+    // (collisions occur on values with the same length)
+    //
+    set<uint16_t> hashes;
+    vector<value_type> types = getValueTypes();
+    for(int i=0; i<types.size(); i++) {
+        request.type = types[i];
+        hashes.insert(getHashForKeyAndType(request));
+    }
+    
+    // search each hash bucket
+    //
+    key_idx keyIndex;
+    for(set<uint16_t>::iterator it=hashes.begin(); it!=hashes.end(); it++){
+        keyIndex = searchForKeyInBucket(request, *it);
+        if (keyIndex.exists) {
+            return keyIndex;
+        }
+    }
+    
+    // if we get here, none of the hashes worked out
+    //
+    keyIndex.exists = false;
+    keyIndex.index = 0;
+    keyIndex.tail = 0;
+    return keyIndex;
+}
 
 key_value getValueForKey(key_value key) {
     
@@ -187,13 +211,13 @@ key_value getValueForKey(key_value key) {
     return key;
 }
 
-void removeKey(key_value key) {
+bool removeKey(key_value key) {
     
-    key_idx keyLookup = findKey(key);
+    key_idx keyLookup = findKeyWithoutType(key);
     
     if (!keyLookup.exists) {
         // key already doesn't exist
-        return;
+        return false;
     }
     
     // we get here, the key exists
@@ -219,87 +243,104 @@ void removeKey(key_value key) {
     
     // TODO: maybe slurp up last bucket item to this blank spot so that
     // all blank records are at the end of hash buckets?
-    
+    return true;
 }
 
-void addKeyValuePair(key_value kvPair) {
+void setKeyValuePair(key_value kvPair) {
     
     // check that the key doesn't already exist?
     key_idx keyLookup = findKey(kvPair);
-    if (keyLookup.exists) {
-        // key already exists!
-        return;
-    }
-    
-    // if key doesn't exist, keyLookup contains
-    // the .tail has the byte index of the pointer
-    // that needs to address this new key
-    // the key itself will simply be appended to the file
     uint16_t valueLen = getValueLengthForType(kvPair.type);
     
-    //
-    // load up record
-    //
-    char* entry = new char[CONFIG_keySize+1+valueLen+4];
-    for(int i=0; i<CONFIG_keySize; i++){
-        entry[i] = kvPair.key[i];
-    }
-    entry[CONFIG_keySize] = (uint8_t)kvPair.type;
-    for (int i=0; i<valueLen; i++) {
-        entry[i+CONFIG_keySize+1] = kvPair.value[i];
-    }
-    entry[CONFIG_keySize+1+valueLen] = '\0';
-    entry[CONFIG_keySize+1+valueLen+1] = '\0';
-    entry[CONFIG_keySize+1+valueLen+2] = '\0';
-    entry[CONFIG_keySize+1+valueLen+3] = '\0';
-    
-    //
-    // add record to database
-    // use an empty record from the bucket, otherwise append it
-    //
-    if (keyLookup.index == 0 || keyLookup.index > db_fileSize) {
+    if (keyLookup.exists) {
+        // key already exists!
+        // let's do an update instead of an add
+        char* entry = new char[valueLen];
+        for (int i=0; i<valueLen; i++) {
+            entry[i] = kvPair.value[i];
+        }
         
-        // we're appending this one!
-        // write record to end of file
-        db_file.seekg(0, db_file.end);
-        long long newRecordIndex = db_file.tellg();
-        db_file.write(entry, CONFIG_keySize+1+valueLen+4);
+        //
+        // overwrite existing value ONLY (leave type and key)
+        //
+        uint32_t valueIdx = keyLookup.index + CONFIG_keySize + 1; // +1 for value type byte
+        db_file.seekg(valueIdx);
+        db_file.write(entry, valueLen);
         
-        // now, go connect the hash bucket ptr
-        char* hashPtr = new char[4];
-        hashPtr[0] = (uint8_t)((newRecordIndex & 0xFF000000) >> 24);
-        hashPtr[1] = (uint8_t)((newRecordIndex & 0x00FF0000) >> 16);
-        hashPtr[2] = (uint8_t)((newRecordIndex & 0x0000FF00) >> 8);
-        hashPtr[3] = (uint8_t)((newRecordIndex & 0x000000FF));
-        db_file.seekg(keyLookup.tail);
-        db_file.write(hashPtr, 4);
-        
-        // update file size
-        db_file.seekg(0, db_file.end);
-        db_fileSize = (uint32_t)db_file.tellg();
-        
-        delete [] hashPtr;
+        delete [] entry;
     }
     else {
+    
+        // if key doesn't exist, keyLookup contains
+        // the .tail has the byte index of the pointer
+        // that needs to address this new key
+        // the key itself will simply be appended to the file
         
-        // we're reusing a previously deleted record spot!
-        db_file.seekg(keyLookup.index);
-        db_file.write(entry, CONFIG_keySize+1+valueLen+4);
-    }
+        
+        //
+        // load up record
+        //
+        char* entry = new char[CONFIG_keySize+1+valueLen+4];
+        for(int i=0; i<CONFIG_keySize; i++){
+            entry[i] = kvPair.key[i];
+        }
+        entry[CONFIG_keySize] = (uint8_t)kvPair.type;
+        for (int i=0; i<valueLen; i++) {
+            entry[i+CONFIG_keySize+1] = kvPair.value[i];
+        }
+        entry[CONFIG_keySize+1+valueLen] = '\0';
+        entry[CONFIG_keySize+1+valueLen+1] = '\0';
+        entry[CONFIG_keySize+1+valueLen+2] = '\0';
+        entry[CONFIG_keySize+1+valueLen+3] = '\0';
+        
+        //
+        // add record to database
+        // use an empty record from the bucket, otherwise append it
+        //
+        if (keyLookup.index == 0 || keyLookup.index > db_fileSize) {
+            
+            // we're appending this one!
+            // write record to end of file
+            db_file.seekg(0, db_file.end);
+            long long newRecordIndex = db_file.tellg();
+            db_file.write(entry, CONFIG_keySize+1+valueLen+4);
+            
+            // now, go connect the hash bucket ptr
+            char* hashPtr = new char[4];
+            hashPtr[0] = (uint8_t)((newRecordIndex & 0xFF000000) >> 24);
+            hashPtr[1] = (uint8_t)((newRecordIndex & 0x00FF0000) >> 16);
+            hashPtr[2] = (uint8_t)((newRecordIndex & 0x0000FF00) >> 8);
+            hashPtr[3] = (uint8_t)((newRecordIndex & 0x000000FF));
+            db_file.seekg(keyLookup.tail);
+            db_file.write(hashPtr, 4);
+            
+            // update file size
+            db_file.seekg(0, db_file.end);
+            db_fileSize = (uint32_t)db_file.tellg();
+            
+            delete [] hashPtr;
+        }
+        else {
+            
+            // we're reusing a previously deleted record spot!
+            db_file.seekg(keyLookup.index);
+            db_file.write(entry, CONFIG_keySize+1+valueLen+4);
+        }
 
-    delete [] entry;
+        delete [] entry;
+    }
 }
 
 
 
-cmd_result processAdd(vector<string> args) {
+cmd_result processSet(vector<string> args) {
     
     cmd_result result;
     
     // DEBUG: force 6 args (KEY x TYPE y VALUE z)
     if (args.size() != 6){
         result.code = 2;
-        result.message = "ERROR: invalid number of parameters to ADD command.";
+        result.message = "ERROR: invalid number of parameters to SET command.";
         return result;
     }
     
@@ -338,7 +379,7 @@ cmd_result processAdd(vector<string> args) {
         return result;
     }
     else {
-        addKeyValuePair(newPair);
+        setKeyValuePair(newPair);
         result.code = 0;
         result.message = "I think I added your key-value pair...";
         result.content = newPair;
@@ -401,13 +442,45 @@ cmd_result processGet(vector<string> args) {
     return result;
 }
 
-cmd_result processUpdate(vector<string> args) {
-    cmd_result result;
-    return result;
-}
-
 cmd_result processDelete(vector<string> args) {
     cmd_result result;
+    
+    // DEBUG: force 2 args (KEY x)
+    if (args.size() != 2){
+        result.code = 32;
+        result.message = "ERROR: invalid number of parameters to DELETE command.";
+        return result;
+    }
+    
+    // DEBUG: validate nouns
+    if (args[0] != "KEY") {
+        result.code = 33;
+        result.message = "ERROR: invalid AQL nouns phrases/ordering given to DELETE command.";
+        return result;
+    }
+    
+    // DEBUG: validate key
+    if (args[1].length() > CONFIG_keySize) {
+        result.code = 34;
+        result.message = "ERROR: provided key is too long for database.";
+        return result;
+    }
+    
+    key_value newPair;
+    newPair.setKey(args[1]);
+    
+    bool deleteSucceeded = removeKey(newPair);
+    if(deleteSucceeded) {
+        result.code = 0;
+        result.content = newPair;
+        result.message = "Deleted key successfully.";
+    }
+    else {
+        result.code = 35;
+        result.content = newPair;
+        result.message = "Delete failed; could not find key.";
+    }
+    
     return result;
 }
 
@@ -437,15 +510,10 @@ cmd_result processCommand(string cmd) {
         terms.push_back(tmp);
     }
     
-    if (term == "add") {
-        return processAdd(terms);
+    if (term == "set") {
+        return processSet(terms);
     } else if (term == "get") {
         return processGet(terms);
-    } else if (term == "update") {
-        // TODO: add update functionality!!
-        result.code = -284;
-        result.message = "ERROR: uninplemented UPDATE!!!";
-        return result;
     } else if (term == "delete") {
         return processDelete(terms);
     }

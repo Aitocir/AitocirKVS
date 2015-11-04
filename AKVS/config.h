@@ -12,6 +12,7 @@
 #include <fstream>
 #include <map>
 #include <set>
+#include <vector>
 
 namespace AKVSConfig {
     
@@ -35,7 +36,7 @@ namespace AKVSConfig {
         {32, {4}},
         {256, {5}},
         {4096, {6}},
-        {65536, {7}}
+        {0, {7}}
     };
     
     
@@ -71,6 +72,26 @@ namespace AKVSConfig {
         EMPTY = 0xFF
         
     };
+    
+    std::vector<value_type> getValueTypes() {
+        return {
+            value_type::BOOLEAN,
+            value_type::CHAR32,
+            value_type::CHAR256,
+            value_type::CHAR4096,
+            value_type::CHAR65536,
+            value_type::DOUBLE,
+            value_type::FLOAT,
+            value_type::INT8,
+            value_type::INT16,
+            value_type::INT32,
+            value_type::INT64,
+            value_type::UINT8,
+            value_type::UINT16,
+            value_type::UINT32,
+            value_type::UINT64
+        };
+    }
     
     value_type getValueTypeForRawValue(uint8_t raw){
         
