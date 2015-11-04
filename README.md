@@ -1,7 +1,7 @@
 # AitocirKVS
 My free-time attempt at making an easy-to-use keyvalue store. Intended to be as easy to use as PlayerPrefs (Unity3d) or NSUserDefaults (iOS) for a local program with very basic storage needs, while being more portable.
 
-# Under Creation, NOT WORKING YET
+# Under Alpha Development, NOT WORKING YET
 
 
 # AitocirKVS design
@@ -26,14 +26,11 @@ Note that this database, like cdb, is limited to a 4GB file size because it uses
 
 The commands AitocirKVS supports are as follows:
 
-  ADD
-    After checking to see if the key already exists (in which case it will fail), this hashes the key and value type to decide what hash bucket to put it in. It uses the Fowler-Noll-Vo hash to hash the key, then masks the top 4 bits with a value to ensure the hash goes into a hash bucket with the same value length as the value type. Each hash bucket only has values of a fixed length. For example, a single hash bucket containing 4 byte values may have uint32s and int32s in it, but no other types because it can only hold values of 4 bytes in length. Then it looks down that hash bucket for the end element. If it finds a deleted element along the way, it will re-use that space for this record and not append anything. Otherwise, it will append a new record and point that previous tail record to this new one.
+  SET
+    After checking to see if the key already exists (in which case it will edit the existing value in-place), this hashes the key and value type to decide what hash bucket to put it in. It uses the Fowler-Noll-Vo hash to hash the key, then masks the top 4 bits with a value to ensure the hash goes into a hash bucket with the same value length as the value type. Each hash bucket only has values of a fixed length. For example, a single hash bucket containing 4 byte values may have uint32s and int32s in it, but no other types because it can only hold values of 4 bytes in length. Then it looks down that hash bucket for the end element. If it finds a deleted element along the way, it will re-use that space for this record and not append anything. Otherwise, it will append a new record and point that previous tail record to this new one.
     
   GET
     Gets value for the provided key and value type.
     
-  UPDATE
-    // not done yet, but will provide new value for existing key
-    
   DELETE
-    // not done yet, but will remove the key-value pair from the database by NULL-ing out the bytes from the record except for the next pointer. The reason for this is that the NULL-ed space can be re-used by the next ADD that uses this hash bucket instead of appending a new record to the end.
+    Remove the key-value pair from the database by NULL-ing out the bytes from the record except for the next pointer. The reason for this is that the NULL-ed space can be re-used by the next ADD that uses this hash bucket instead of appending a new record to the end.
