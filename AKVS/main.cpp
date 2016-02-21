@@ -39,7 +39,7 @@ uint16_t getHashForKeyAndType(key_value entry) {
     
     // DEBUG: put everything in one bucket
     // testing removal/reuse code
-    return 0;
+    //return 0;
     
     uint32_t p = 16777619;
     uint32_t o = 2166136261;
@@ -95,7 +95,7 @@ key_idx searchForKeyInBucket(key_value request, uint16_t hash) {
     // check to see if hash bucket is empty
     if (idx == 0) {
         result.exists = false;
-        result.index = 0;
+        result.index = 0; // 0 == EOF
         result.tail = (hash*4) + CONFIG_HASHTABLE_START;
         return result;
     }
@@ -103,6 +103,7 @@ key_idx searchForKeyInBucket(key_value request, uint16_t hash) {
     else {
         uint32_t tailIdx = (hash*4) + CONFIG_HASHTABLE_START;
         uint32_t firstEmptyIdx = 0;
+        uint32_t firstEmptyTail = 0;
 
         while (idx >= (CONFIG_HASHTABLE_START + (65536*4))) {
             // check to see if this is our key
@@ -123,20 +124,22 @@ key_idx searchForKeyInBucket(key_value request, uint16_t hash) {
             
             if (!isKey) {
                 
-                if (isErased && firstEmptyIdx != 0) {
+                if (isErased && firstEmptyIdx == 0) {
                     firstEmptyIdx = idx;
+                    firstEmptyTail = tailIdx;
                 }
                 
                 tailIdx = idx+(CONFIG_keySize+1+getValueLengthForType(request.type));
                 db_file.seekg(tailIdx);
                 db_file.read(hashPtr, 4);
-                idx = hashPtr[0];
+                idx = hashPtr[0] & 0x80 ? CHAR_FACTOR+hashPtr[0] : hashPtr[0];
                 idx <<= 8;
-                idx += hashPtr[1];
+                idx += hashPtr[1] & 0x80 ? CHAR_FACTOR+hashPtr[1] : hashPtr[1];
                 idx <<= 8;
-                idx += hashPtr[2];
+                idx += hashPtr[2] & 0x80 ? CHAR_FACTOR+hashPtr[2] : hashPtr[2];
                 idx <<= 8;
-                idx += hashPtr[3];
+                idx += hashPtr[3] & 0x80 ? CHAR_FACTOR+hashPtr[3] : hashPtr[3];
+                cout << "idx: " << idx << endl;
             }
             else {
                 result.exists = true;
@@ -150,8 +153,8 @@ key_idx searchForKeyInBucket(key_value request, uint16_t hash) {
         // something went terribly wrong!
         // (hash list ptr went back to reserved first indexes)
         result.exists = false;
-        result.tail = tailIdx;
-        result.index = firstEmptyIdx; // 0 will be treated as EOF
+        result.tail = firstEmptyTail ? firstEmptyTail : tailIdx;
+        result.index = firstEmptyIdx ? firstEmptyIdx : idx; // 0 will be treated as EOF
         return result;
     }
 
@@ -172,20 +175,20 @@ key_idx findKeyWithoutType(key_value request) {
     // (collisions occur on values with the same length)
     //
     set<uint16_t> hashes;
+    key_idx keyIndex;
     vector<value_type> types = getValueTypes();
     for(int i=0; i<types.size(); i++) {
         request.type = types[i];
-        hashes.insert(getHashForKeyAndType(request));
-    }
-    
-    // search each hash bucket
-    //
-    key_idx keyIndex;
-    for(set<uint16_t>::iterator it=hashes.begin(); it!=hashes.end(); it++){
-        keyIndex = searchForKeyInBucket(request, *it);
-        if (keyIndex.exists) {
-            return keyIndex;
+        uint16_t hash = getHashForKeyAndType(request);
+        if(hashes.find(hash) == hashes.end()) {
+            // haven't tried this hash bucket yet
+            hashes.insert(hash);
+            keyIndex = searchForKeyInBucket(request, hash);
+            if (keyIndex.exists) {
+                return keyIndex;
+            }
         }
+        
     }
     
     // if we get here, none of the hashes worked out
@@ -238,6 +241,7 @@ bool removeKey(key_value key) {
     db_file.seekg(keyLookup.index);
     db_file.write(blankRecord, CONFIG_keySize+1+valueLength);
     delete [] blankRecord;
+    delete [] rawValue;
 
     // notice we're leaving the ptr to the next record in place
     // this is by design
@@ -297,7 +301,7 @@ void setKeyValuePair(key_value kvPair) {
         // add record to database
         // use an empty record from the bucket, otherwise append it
         //
-        if (keyLookup.index == 0 || keyLookup.index > db_fileSize) {
+        if (keyLookup.index == 0 || keyLookup.index >= db_fileSize) {
             
             // we're appending this one!
             // write record to end of file
@@ -316,7 +320,9 @@ void setKeyValuePair(key_value kvPair) {
             
             // update file size
             db_file.seekg(0, db_file.end);
+            cout << "Old Filesize: " << db_fileSize;
             db_fileSize = (uint32_t)db_file.tellg();
+            cout << ", new filesize: " << db_fileSize << endl;
             
             delete [] hashPtr;
         }
@@ -594,7 +600,7 @@ int main(int argc, const char * argv[]) {
     char* buffer = new char[CONFIG_HASHTABLE_START];
     db_file.seekg(0);
 
-    db_file.read(buffer, 10);
+    db_file.read(buffer, CONFIG_HASHTABLE_START);
     if (buffer[0] != 'A' || buffer[1] != 'K' || buffer[2] != 'V' || buffer[3] != 'S'){
         // wrong file leading 4 bytes
         cout << "ERROR: Database seems to be malformed! (Missing database header 'AKVS'\n)";
