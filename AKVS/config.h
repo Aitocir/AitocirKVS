@@ -24,19 +24,19 @@ namespace AKVSConfig {
     uint32_t db_fileSize;
     
     // global constants
-    const uint32_t CONFIG_HASHTABLE_START = 10; // first byte index of hash table right after file header
+    const uint32_t CONFIG_HASHTABLE_START = 14; // first byte index of hash table right after file header
     
     // global config variables
     uint16_t CONFIG_keySize = 32;
     std::map<int, std::set<int> > CONFIG_weights = {
-        {1, {0}},
-        {2, {1}},
-        {4, {2}},
-        {8, {3}},
-        {32, {4}},
-        {256, {5}},
-        {4096, {6}},
-        {0, {7}}
+        {1, {0}},//0
+        {2, {1}},//1
+        {4, {2}},//2
+        {8, {3}},//3
+        {32, {4}},//5
+        {256, {5}},//8
+        {4096, {6}},//12
+        {65536, {7}}//16
     };
     
     

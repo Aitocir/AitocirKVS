@@ -37,6 +37,10 @@ using namespace AKVSStructures;
 
 uint16_t getHashForKeyAndType(key_value entry) {
     
+    // DEBUG: put everything in one bucket
+    // testing removal/reuse code
+    return 0;
+    
     uint32_t p = 16777619;
     uint32_t o = 2166136261;
     uint16_t m = 0x0FFF;
@@ -99,7 +103,8 @@ key_idx searchForKeyInBucket(key_value request, uint16_t hash) {
     else {
         uint32_t tailIdx = (hash*4) + CONFIG_HASHTABLE_START;
         uint32_t firstEmptyIdx = 0;
-        while ((idx & 0x0000FFFF) != 0) {
+
+        while (idx >= (CONFIG_HASHTABLE_START + (65536*4))) {
             // check to see if this is our key
             bool isKey = true;
             bool isErased = true;
@@ -111,7 +116,7 @@ key_idx searchForKeyInBucket(key_value request, uint16_t hash) {
                     // not a match
                     isKey = false;
                 }
-                if (request.key[i] != '\0') {
+                if (keyFromFile[i] != '\0') {
                     isErased = false;
                 }
             }
@@ -222,22 +227,18 @@ bool removeKey(key_value key) {
     
     // we get here, the key exists
     // let's null it out
-    db_file.seekg(keyLookup.index);
-    string nullStr = "";
-    for(int i=0; i<CONFIG_keySize; i++){
-        nullStr += "\0";
-    }
-    db_file.write(nullStr.c_str(), CONFIG_keySize);
-    
-    char* rawValue;
+    db_file.seekg(keyLookup.index + CONFIG_keySize);
+    char* rawValue = new char[1];
     db_file.read(rawValue, 1);
     value_type type = getValueTypeForRawValue((uint8_t)*rawValue);
     int valueLength = getValueLengthForType(type);
-    nullStr = "";
-    for(int i=0; i<1+valueLength; i++){
-        nullStr += "\0";
-    }
-    db_file.write(nullStr.c_str(), 1+valueLength);
+    char* blankRecord = new char[CONFIG_keySize+1+valueLength];
+    fill(blankRecord, blankRecord+CONFIG_keySize+1+valueLength, '\0');
+    
+    db_file.seekg(keyLookup.index);
+    db_file.write(blankRecord, CONFIG_keySize+1+valueLength);
+    delete [] blankRecord;
+
     // notice we're leaving the ptr to the next record in place
     // this is by design
     
@@ -275,7 +276,6 @@ void setKeyValuePair(key_value kvPair) {
         // the .tail has the byte index of the pointer
         // that needs to address this new key
         // the key itself will simply be appended to the file
-        
         
         //
         // load up record
@@ -524,31 +524,76 @@ cmd_result processCommand(string cmd) {
     return result;
 }
 
+bool writeNewAKVSdb(const char* fileName) {
+    
+    // 0) fail if file already exists
+    if (ifstream(fileName)) {
+        return false;
+    }
+    
+    // 1) write the "AKVS" header
+    char* fileBytes = new char[CONFIG_HASHTABLE_START + (65536*4)];
+    fileBytes[0] = 'A';
+    fileBytes[1] = 'K';
+    fileBytes[2] = 'V';
+    fileBytes[3] = 'S';
+    
+    // 2) write the key size
+    fileBytes[4] = '\x00';
+    fileBytes[5] = '\x20';
+    
+    // 2) write the bytes for bucket weights
+    // TODO: accept params to adjust this away from default
+    // default is one for each size
+    fileBytes[6] = '\0';
+    fileBytes[7] = '\x01';
+    fileBytes[8] = '\x02';
+    fileBytes[9] = '\x03';
+    fileBytes[10] = '\x05';
+    fileBytes[11] = '\x08';
+    fileBytes[12] = '\x0C';
+    fileBytes[13] = '\x10';
+    
+    // 3) write the null bytes where hash bucket head ptrs will go
+    fill(fileBytes+14, fileBytes+14+(65536*4), '\0');
+    
+    // actually commit to disk
+    try {
+        db_file = fstream(fileName, fstream::binary);
+        db_file.open(fileName, ios_base::in | ios_base::out | ios_base::trunc | ios_base::binary);
+        db_file.write(fileBytes, CONFIG_HASHTABLE_START + (65536*4));
+        db_file.close();
+    }
+    catch (...) {
+        cout << "hmmm....";
+        return false;
+    }
+    
+    return true;
+}
+
 int main(int argc, const char * argv[]) {
     
-    ////////////
-    ///////////
-    ///////////
-    
-    double a = .123456789123456789123456789;//.123456789123456789123456789;
-//    std::cout.precision(std::numeric_limits<float>::digits10);
-    std::cout << "double:  " << a << "   " ;//<< std::numeric_limits<float>::digits10 << std::endl;
-//    double b = .000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123456789123456789123456789;
-//    std::cout.precision(std::numeric_limits<double>::digits10);
-//    std::cout << "double: " << b << "   " << std::numeric_limits<double>::digits10 << std::endl;
-    
-    ///////////
-    //////////
-    //////////
-    
-    cout << "argc: " << argc << endl;
+    // create a new file if this filepath does not exist
+    // try to open the database if it does exist
+    if (!ifstream(argv[1])) {
+        // create a new default empty database
+        if (!writeNewAKVSdb(argv[1])) {
+            // writing new database failed!
+            cout << "ERROR: didn't find existing database, and failed to write a new one. Check your access permissions on the file path.";
+            return -1;
+        }
+    }
+    //else {
+        // open AKVS file
+        db_file = fstream(argv[1], fstream::binary);
+        db_file.open(argv[1]);
+    //}
 
-    // open AKVS file
-    db_file = fstream(argv[1], fstream::binary);
-    db_file.open(argv[1]);
-    
     // verify the database header
-    char* buffer = new char[10];
+    char* buffer = new char[CONFIG_HASHTABLE_START];
+    db_file.seekg(0);
+
     db_file.read(buffer, 10);
     if (buffer[0] != 'A' || buffer[1] != 'K' || buffer[2] != 'V' || buffer[3] != 'S'){
         // wrong file leading 4 bytes
@@ -566,11 +611,9 @@ int main(int argc, const char * argv[]) {
     CONFIG_keySize = keyLength;
     
     // get value length weightings for this database
-    uint32_t weights = (buffer[6] << 24) + (buffer[7] << 16) + (buffer[8] << 8) + buffer[9];
     for (int i=0; i<8; i++) {
-        uint32_t mask = 0x0000000F << (i*4);
-        int weight = 1 << ((weights & mask) >> (i*4));
-        
+        uint32_t weight = 1 << buffer[6+i];
+
         if(CONFIG_weights.find(weight) == CONFIG_weights.end()){
             // not a valid weight
             cout << "ERROR: Database seems to be malformed! (Invalid value-length weight)";
@@ -618,7 +661,8 @@ int main(int argc, const char * argv[]) {
             // 0) print out errors/feedback
             cout << commandResult.message;
             cout << endl;
-            if (commandResult.code == 0 /*&& commandResult.message.length() > 0*/){
+            
+            if (commandResult.code == 0){
                 cout << commandResult.contentString();
                 cout << endl;
             }
