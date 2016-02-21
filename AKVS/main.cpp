@@ -97,6 +97,8 @@ key_idx searchForKeyInBucket(key_value request, uint16_t hash) {
         result.exists = false;
         result.index = 0; // 0 == EOF
         result.tail = (hash*4) + CONFIG_HASHTABLE_START;
+        
+        delete [] hashPtr;
         return result;
     }
     // if it isn't traverse looking for key
@@ -144,6 +146,8 @@ key_idx searchForKeyInBucket(key_value request, uint16_t hash) {
                 result.exists = true;
                 result.index = idx;
                 result.tail = tailIdx;
+                
+                delete [] hashPtr;
                 return result;
             }
         }
@@ -154,6 +158,8 @@ key_idx searchForKeyInBucket(key_value request, uint16_t hash) {
         result.exists = false;
         result.tail = firstEmptyTail ? firstEmptyTail : tailIdx;
         result.index = firstEmptyIdx ? firstEmptyIdx : idx; // 0 will be treated as EOF
+        
+        delete [] hashPtr;
         return result;
     }
 
@@ -571,9 +577,11 @@ bool writeNewAKVSdb(const char* fileName) {
     }
     catch (...) {
         cout << "hmmm....";
+        delete [] fileBytes;
         return false;
     }
     
+    delete [] fileBytes;
     return true;
 }
 
@@ -650,6 +658,8 @@ int main(int argc, const char * argv[]) {
             cout << result.contentString();
             cout << endl;
         }
+        
+        delete result.content.value;
         return 0;
     }
     else {
