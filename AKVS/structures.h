@@ -35,8 +35,8 @@ namespace AKVSStructures {
         }
         
         void setKey(std::string s){
-            key = new char[AKVSConfig::CONFIG_keySize];
-            for(int i=0; i<AKVSConfig::CONFIG_keySize; i++) {
+            key = new char[AKVSConfig::CONFIG_keySize+1];
+            for(int i=0; i<AKVSConfig::CONFIG_keySize+1; i++) {
                 if (i<s.size()){
                     key[i] = s[i];
                 } else {
@@ -53,8 +53,8 @@ namespace AKVSStructures {
                 delete [] value;
             }
             
-            key = new char[keySize];
-            value = new char[valueSize];
+            key = new char[keySize+1];
+            value = new char[valueSize+1];
         }
         
         uint8_t valueAs_uint8() {
