@@ -139,7 +139,6 @@ key_idx searchForKeyInBucket(key_value request, uint16_t hash) {
                 idx += hashPtr[2] & 0x80 ? CHAR_FACTOR+hashPtr[2] : hashPtr[2];
                 idx <<= 8;
                 idx += hashPtr[3] & 0x80 ? CHAR_FACTOR+hashPtr[3] : hashPtr[3];
-                cout << "idx: " << idx << endl;
             }
             else {
                 result.exists = true;
@@ -555,10 +554,10 @@ bool writeNewAKVSdb(const char* fileName) {
     fileBytes[7] = '\x01';
     fileBytes[8] = '\x02';
     fileBytes[9] = '\x03';
-    fileBytes[10] = '\x05';
-    fileBytes[11] = '\x08';
-    fileBytes[12] = '\x0C';
-    fileBytes[13] = '\x10';
+    fileBytes[10] = '\x04';
+    fileBytes[11] = '\x06';
+    fileBytes[12] = '\x08';
+    fileBytes[13] = '\x0A';
     
     // 3) write the null bytes where hash bucket head ptrs will go
     fill(fileBytes+14, fileBytes+14+(65536*4), '\0');

@@ -172,12 +172,21 @@ namespace AKVSStructures {
             }
         }
         
-        std::string valueAs_char32() {
-            if (type != AKVSConfig::value_type::CHAR32) {
+        std::string valueAs_char16() {
+            if (type != AKVSConfig::value_type::CHAR16) {
                 return "";
             }
             else {
                 return std::string(value);
+            }
+        }
+        
+        std::string valueAs_char64() {
+            if (type != AKVSConfig::value_type::CHAR64) {
+                return "";
+            }
+            else {
+                return std::string(value) ;
             }
         }
         
@@ -190,17 +199,8 @@ namespace AKVSStructures {
             }
         }
         
-        std::string valueAs_char4096() {
-            if (type != AKVSConfig::value_type::CHAR4096) {
-                return "";
-            }
-            else {
-                return std::string(value) ;
-            }
-        }
-        
-        std::string valueAs_char65536() {
-            if (type != AKVSConfig::value_type::CHAR65536) {
+        std::string valueAs_char1024() {
+            if (type != AKVSConfig::value_type::CHAR1024) {
                 return "";
             }
             else {
@@ -265,14 +265,14 @@ namespace AKVSStructures {
                 case AKVSConfig::value_type::BOOLEAN:
                     return std::to_string(valueAs_bool());
                     
-                case AKVSConfig::value_type::CHAR32:
-                    return valueAs_char32();
+                case AKVSConfig::value_type::CHAR16:
+                    return valueAs_char16();
+                case AKVSConfig::value_type::CHAR64:
+                    return valueAs_char64();
                 case AKVSConfig::value_type::CHAR256:
                     return valueAs_char256();
-                case AKVSConfig::value_type::CHAR4096:
-                    return valueAs_char4096();
-                case AKVSConfig::value_type::CHAR65536:
-                    return valueAs_char65536();
+                case AKVSConfig::value_type::CHAR1024:
+                    return valueAs_char1024();
                     
                 default:
                     return "(null)";

@@ -33,10 +33,10 @@ namespace AKVSConfig {
         {2, {1}},//1
         {4, {2}},//2
         {8, {3}},//3
-        {32, {4}},//5
-        {256, {5}},//8
-        {4096, {6}},//12
-        {65536, {7}}//16
+        {16, {4}},//5
+        {64, {5}},//8
+        {256, {6}},//12
+        {1024, {7}}//16
     };
     
     
@@ -63,10 +63,10 @@ namespace AKVSConfig {
         BOOLEAN = 0x30,
         
         // strings
-        CHAR32 = 0x40,
-        CHAR256 = 0x41,
-        CHAR4096 = 0x42,
-        CHAR65536 = 0x43,
+        CHAR16 = 0x40,
+        CHAR64 = 0x41,
+        CHAR256 = 0x42,
+        CHAR1024 = 0x43,
         
         // not a valid type symbol
         EMPTY = 0xFF
@@ -76,10 +76,10 @@ namespace AKVSConfig {
     std::vector<value_type> getValueTypes() {
         return {
             value_type::BOOLEAN,
-            value_type::CHAR32,
+            value_type::CHAR16,
+            value_type::CHAR64,
             value_type::CHAR256,
-            value_type::CHAR4096,
-            value_type::CHAR65536,
+            value_type::CHAR1024,
             value_type::DOUBLE,
             value_type::FLOAT,
             value_type::INT8,
@@ -123,13 +123,13 @@ namespace AKVSConfig {
                 return value_type::BOOLEAN;
                 
             case 0x40:
-                return value_type::CHAR32;
+                return value_type::CHAR16;
             case 0x41:
-                return value_type::CHAR256;
+                return value_type::CHAR64;
             case 0x42:
-                return value_type::CHAR4096;
+                return value_type::CHAR256;
             case 0x43:
-                return value_type::CHAR65536;
+                return value_type::CHAR1024;
                 
             default:
                 return value_type::EMPTY;
@@ -163,21 +163,21 @@ namespace AKVSConfig {
                 return 8;
                 
             // 32 bytes
-            case value_type::CHAR32:
+            case value_type::CHAR16:
             case value_type::DOUBLE:
-                return 32;
+                return 16;
                 
             // 256 bytes
+            case value_type::CHAR64:
+                return 64;
+                
+            // 4k bytes
             case value_type::CHAR256:
                 return 256;
                 
             // 4k bytes
-            case value_type::CHAR4096:
-                return 4096;
-                
-            // 4k bytes
-            case value_type::CHAR65536:
-                return 65536;
+            case value_type::CHAR1024:
+                return 1024;
                 
             case value_type::EMPTY:
                 return 0;
@@ -210,14 +210,14 @@ namespace AKVSConfig {
             return value_type::DOUBLE;
         } else if (nameLower == "bool" || name == "boolean") {
             return value_type::BOOLEAN;
-        } else if (nameLower == "char32") {
-            return value_type::CHAR32;
+        } else if (nameLower == "char16") {
+            return value_type::CHAR16;
+        } else if (nameLower == "char64") {
+            return value_type::CHAR64;
         } else if (nameLower == "char256") {
             return value_type::CHAR256;
-        } else if (nameLower == "char4096") {
-            return value_type::CHAR4096;
-        } else if (nameLower == "char65536") {
-            return value_type::CHAR65536;
+        } else if (nameLower == "char1024") {
+            return value_type::CHAR1024;
         } else {
             return value_type::EMPTY;
         }
@@ -252,14 +252,14 @@ namespace AKVSConfig {
             case value_type::BOOLEAN:
                 return "boolean";
                 
-            case value_type::CHAR32:
-                return "char32";
+            case value_type::CHAR16:
+                return "char16";
+            case value_type::CHAR64:
+                return "char64";
             case value_type::CHAR256:
                 return "char256";
-            case value_type::CHAR4096:
-                return "char4096";
-            case value_type::CHAR65536:
-                return "char65536";
+            case value_type::CHAR1024:
+                return "char1024";
                 
             default:
                 return "null";
